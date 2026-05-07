@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop All | Thrift Store</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .page-header {
+      background-color: var(--pastel-blue);
+      padding: 60px 0;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .shop-container {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+    }
+
+    .filters-sidebar {
+      width: 250px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 100px;
+    }
+
+    .filter-group {
+      margin-bottom: 25px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 20px;
+    }
+
+    .filter-group h4 {
+      margin-bottom: 15px;
+      font-size: 1.1rem;
+    }
+
+    .filter-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      color: var(--text-light);
+    }
+
+    .filter-option input[type="checkbox"] {
+      accent-color: var(--text-main);
+      width: 16px;
+      height: 16px;
+    }
+
+    .products-main {
+      flex-grow: 1;
+    }
+
+    .shop-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sort-select {
+      padding: 8px 15px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .shop-product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 30px;
+    }
+
+    @media (max-width: 768px) {
+      .shop-container {
+        flex-direction: column;
+      }
+      .filters-sidebar {
+        width: 100%;
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header></header>
+
+  <main>
+    <div class="page-header animate-fade-in">
+      <div class="container">
+        <h1 class="section-title" style="margin-bottom: 10px;">Shop All</h1>
+        <p>Discover unique finds, curated just for you.</p>
+      </div>
+    </div>
+
+    <section class="container shop-container">
+      <!-- Sidebar Filters -->
+      <aside class="filters-sidebar">
+        <div class="filter-group">
+          <h4>Category</h4>
+          <label class="filter-option"><input type="checkbox" value="Women" class="cat-filter"> Women</label>
+          <label class="filter-option"><input type="checkbox" value="Men" class="cat-filter"> Men</label>
+          <label class="filter-option"><input type="checkbox" value="Vintage" class="cat-filter"> Vintage</label>
+          <label class="filter-option"><input type="checkbox" value="Accessories" class="cat-filter"> Accessories</label>
+        </div>
+
+        <div class="filter-group">
+          <h4>Size</h4>
+          <label class="filter-option"><input type="checkbox"> S</label>
+          <label class="filter-option"><input type="checkbox"> M</label>
+          <label class="filter-option"><input type="checkbox"> L</label>
+          <label class="filter-option"><input type="checkbox"> XL</label>
+        </div>
+
+        <div class="filter-group" style="border: none;">
+          <h4>Condition</h4>
+          <label class="filter-option"><input type="checkbox"> Like New</label>
+          <label class="filter-option"><input type="checkbox"> Excellent</label>
+          <label class="filter-option"><input type="checkbox"> Good</label>
+          <label class="filter-option"><input type="checkbox"> Vintage Fade</label>
+        </div>
+      </aside>
+
+      <!-- Main Products Area -->
+      <div class="products-main">
+        <div class="shop-controls">
+          <p id="results-count">Showing all products</p>
+          <select class="sort-select" id="sort-select">
+            <option value="featured">Featured</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+            <option value="newest">Newest Arrivals</option>
+          </select>
+        </div>
+
+        <div class="shop-product-grid" id="shop-product-grid">
+          <!-- Products injected via JS -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer></footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const grid = document.getElementById('shop-product-grid');
+      const sortSelect = document.getElementById('sort-select');
+      const catFilters = document.querySelectorAll('.cat-filter');
+      
+      let currentProducts = [...products];
+
+      // Check URL for category filter (e.g. from Home page)
+      const urlParams = new URLSearchParams(window.location.search);
+      const categoryParam = urlParams.get('category');
+      if (categoryParam) {
+        catFilters.forEach(cb => {
+          if (cb.value === categoryParam) cb.checked = true;
+        });
+      }
+
+      function renderGrid() {
+        grid.innerHTML = currentProducts.map(p => createProductCard(p)).join('');
+        document.getElementById('results-count').textContent = `Showing ${currentProducts.length} products`;
+      }
+
+      function filterAndSort() {
+        // Filter
+        const selectedCats = Array.from(catFilters).filter(cb => cb.checked).map(cb => cb.value);
+        if (selectedCats.length > 0) {
+          currentProducts = products.filter(p => selectedCats.includes(p.category));
+        } else {
+          currentProducts = [...products];
+        }
+
+        // Sort
+        const sortVal = sortSelect.value;
+        if (sortVal === 'price-low') currentProducts.sort((a,b) => a.price - b.price);
+        if (sortVal === 'price-high') currentProducts.sort((a,b) => b.price - a.price);
+        if (sortVal === 'newest') currentProducts.sort((a,b) => b.id - a.id);
+
+        renderGrid();
+      }
+
+      // Event Listeners
+      catFilters.forEach(cb => cb.addEventListener('change', filterAndSort));
+      sortSelect.addEventListener('change', filterAndSort);
+
+      // Initial Render
+      filterAndSort();
+    });
+  </script>
+</body>
+</html>

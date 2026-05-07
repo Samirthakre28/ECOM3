@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Details | Thrift Store</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .product-details-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      margin-top: 40px;
+    }
+
+    .product-gallery {
+      background-color: #f5f5f5;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .product-gallery img {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+    }
+
+    .product-info-section {
+      padding-top: 20px;
+    }
+
+    .p-brand {
+      text-transform: uppercase;
+      color: var(--text-light);
+      letter-spacing: 1px;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+    }
+
+    .p-title {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+    }
+
+    .p-price {
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin-bottom: 30px;
+      color: var(--accent-sage-hover);
+    }
+
+    .p-meta {
+      display: flex;
+      gap: 30px;
+      margin-bottom: 30px;
+      padding: 20px 0;
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .p-meta-item strong {
+      display: block;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 5px;
+    }
+
+    .p-description {
+      margin-bottom: 40px;
+      color: var(--text-light);
+      line-height: 1.8;
+    }
+
+    .add-to-cart-btn {
+      width: 100%;
+      padding: 18px;
+      font-size: 1.1rem;
+    }
+
+    .related-section {
+      margin-top: 100px;
+    }
+
+    @media (max-width: 768px) {
+      .product-details-container {
+        grid-template-columns: 1fr;
+        gap: 30px;
+      }
+      .p-title {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header></header>
+
+  <main class="container">
+    <div id="product-content">
+      <!-- Product details injected here -->
+    </div>
+
+    <!-- Related Items -->
+    <section class="related-section">
+      <h2 class="section-title text-center">You Might Also Like</h2>
+      <div class="product-grid" id="related-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+        <!-- Related injected here -->
+      </div>
+    </section>
+  </main>
+
+  <footer></footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const productId = parseInt(urlParams.get('id'));
+      
+      const product = products.find(p => p.id === productId);
+
+      if (product) {
+        // Document Title for SEO
+        document.title = `${product.title} - ${product.brand} | Thrift Store`;
+
+        const content = `
+          <div class="product-details-container animate-fade-in">
+            <div class="product-gallery">
+              <img src="${product.image}" alt="${product.title}">
+            </div>
+            <div class="product-info-section">
+              <div class="p-brand">${product.brand}</div>
+              <h1 class="p-title">${product.title}</h1>
+              <div class="p-price">₹${product.price.toFixed(2)}</div>
+              
+              <div class="p-meta">
+                <div class="p-meta-item">
+                  <strong>Size</strong>
+                  <span>${product.size}</span>
+                </div>
+                <div class="p-meta-item">
+                  <strong>Condition</strong>
+                  <span>${product.condition}</span>
+                </div>
+                <div class="p-meta-item">
+                  <strong>Category</strong>
+                  <span>${product.category}</span>
+                </div>
+              </div>
+
+              <div class="p-description">
+                <p>${product.description}</p>
+                <p style="margin-top: 15px; font-size: 0.9rem;">
+                  <em>Note: All our items are second-hand and may show minor signs of wear. We ensure all significant flaws are noted. By purchasing, you are extending the life cycle of this garment.</em>
+                </p>
+              </div>
+
+              <button class="btn btn-primary add-to-cart-btn" onclick="CartService.addToCart(${product.id})">
+                Add to Cart - ₹${product.price.toFixed(2)}
+              </button>
+            </div>
+          </div>
+        `;
+        document.getElementById('product-content').innerHTML = content;
+
+        // Load related items
+        const related = products.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
+        // If not enough related by category, just pad with others
+        if(related.length < 4) {
+           const others = products.filter(p => p.id !== product.id && !related.includes(p));
+           related.push(...others.slice(0, 4 - related.length));
+        }
+        document.getElementById('related-grid').innerHTML = related.map(p => createProductCard(p)).join('');
+
+      } else {
+        document.getElementById('product-content').innerHTML = `
+          <div style="text-align:center; padding: 100px 0;">
+            <h2>Product Not Found</h2>
+            <p>Sorry, the item you are looking for does not exist.</p>
+            <a href="shop.html" class="btn btn-primary" style="margin-top: 20px;">Back to Shop</a>
+          </div>
+        `;
+      }
+    });
+  </script>
+</body>
+</html>

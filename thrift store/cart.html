@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Cart | Thrift Store</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .cart-container {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 40px;
+      margin-top: 40px;
+    }
+
+    .cart-items {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .cart-item {
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      align-items: center;
+    }
+
+    .cart-item-img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .cart-item-info {
+      flex-grow: 1;
+    }
+
+    .cart-item-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .cart-item-price {
+      font-weight: 600;
+      color: var(--accent-sage-hover);
+    }
+
+    .quantity-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .quantity-control button {
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--border-color);
+      background: var(--white);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: #ff4d4f;
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .order-summary {
+      background-color: #f5f5f5;
+      padding: 30px;
+      border-radius: 12px;
+      position: sticky;
+      top: 100px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .summary-total {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-top: 20px;
+      margin-bottom: 30px;
+    }
+
+    .checkout-btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 1.1rem;
+    }
+
+    .empty-cart {
+      text-align: center;
+      padding: 60px 0;
+    }
+
+    @media (max-width: 768px) {
+      .cart-container {
+        grid-template-columns: 1fr;
+      }
+      .cart-item {
+        flex-direction: column;
+        text-align: center;
+      }
+      .quantity-control {
+        justify-content: center;
+      }
+    }
+  </style>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+
+  <header></header>
+
+  <main class="container">
+    <h1 class="section-title" style="margin-top: 40px;">Your Cart</h1>
+    
+    <div id="cart-content">
+      <!-- Cart content injected here -->
+    </div>
+  </main>
+
+  <footer></footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', renderCart);
+
+    function renderCart() {
+      const cart = CartService.getCart();
+      const container = document.getElementById('cart-content');
+
+      if (cart.length === 0) {
+        container.innerHTML = `
+          <div class="empty-cart animate-fade-in">
+            <h2>Your cart is empty</h2>
+            <p style="margin: 20px 0;">Looks like you haven't added any sustainable finds yet.</p>
+            <a href="shop.html" class="btn btn-primary">Start Shopping</a>
+          </div>
+        `;
+        return;
+      }
+
+      const subtotal = CartService.getCartTotal();
+      const shipping = subtotal > 999 ? 0 : 50;
+      const total = subtotal + shipping;
+
+      let html = `<div class="cart-container animate-fade-in"><div class="cart-items">`;
+      
+      cart.forEach(item => {
+        html += `
+          <div class="cart-item">
+            <img src="${item.image}" alt="${item.title}" class="cart-item-img">
+            <div class="cart-item-info">
+              <div style="font-size: 0.8rem; color: var(--text-light); text-transform:uppercase;">${item.brand}</div>
+              <div class="cart-item-title">${item.title}</div>
+              <div style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 5px;">Size: ${item.size}</div>
+              <div class="cart-item-price">₹${item.price.toFixed(2)}</div>
+              
+              <div class="quantity-control">
+                <button onclick="updateQty(${item.id}, ${item.quantity - 1})">-</button>
+                <span>${item.quantity}</span>
+                <button onclick="updateQty(${item.id}, ${item.quantity + 1})">+</button>
+              </div>
+            </div>
+            <button class="remove-btn" onclick="removeItem(${item.id})">Remove</button>
+          </div>
+        `;
+      });
+
+      html += `</div>
+        <div class="order-summary">
+          <h3 style="margin-bottom: 20px;">Order Summary</h3>
+          <div class="summary-row">
+            <span>Subtotal</span>
+            <span>₹${subtotal.toFixed(2)}</span>
+          </div>
+          <div class="summary-row">
+            <span>Shipping</span>
+            <span>${shipping === 0 ? 'Free' : '₹' + shipping.toFixed(2)}</span>
+          </div>
+          <div class="summary-total">
+            <span>Total</span>
+            <span>₹${total.toFixed(2)}</span>
+          </div>
+          
+          <div style="margin-bottom: 15px;">
+            <button class="btn btn-primary checkout-btn" style="background-color: #3399cc; border-color: #3399cc; color: white;" onclick="checkoutRazorpay(${total}, ${shipping})">
+              <span style="font-weight: bold;">Checkout with Razorpay</span>
+            </button>
+          </div>
+          
+          <div style="text-align: center; margin-top: 15px; font-size: 0.8rem; color: var(--text-light);">
+            Secure Checkout. Carbon Neutral Shipping.
+          </div>
+        </div>
+      </div>`;
+
+      container.innerHTML = html;
+    }
+
+    function updateQty(id, qty) {
+      if (qty < 1) return;
+      CartService.updateQuantity(id, qty);
+      renderCart();
+      updateCartCount();
+    }
+
+    function removeItem(id) {
+      CartService.removeFromCart(id);
+      renderCart();
+      updateCartCount();
+    }
+
+    async function checkoutRazorpay(total, shipping) {
+      const token = localStorage.getItem('userToken') || sessionStorage.getItem('userToken');
+      if (!token) {
+        if (typeof ModalService !== 'undefined') {
+          ModalService.showLoginRequired('cart.html');
+        } else {
+          if (confirm("🔒 You need to login to place an order. Proceed to Login/Signup?")) {
+            window.location.href = `auth.html?redirect=cart.html`;
+          }
+        }
+        return;
+      }
+
+      try {
+        const cartItems = CartService.getCart();
+        
+        const response = await fetch('http://localhost:3000/api/create-order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            amount: total, 
+            shipping: shipping,
+            items: cartItems
+          })
+        });
+        
+        const orderData = await response.json();
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            alert("Session expired. Please login again.");
+            window.location.href = "auth.html?redirect=cart.html";
+          } else {
+            alert('Error initiating checkout: ' + (orderData.message || orderData.error));
+          }
+          return;
+        }
+
+        const options = {
+          "key": "rzp_test_SkOaBP9BFrAoaF", 
+          "amount": orderData.amount, 
+          "currency": "INR",
+          "name": "Thrift Store",
+          "description": "Sustainable Fashion",
+          "image": "https://example.com/your_logo",
+          "order_id": orderData.id, 
+          "handler": async function (response){
+              // Save payment to database
+              await fetch('http://localhost:3000/api/save-payment', {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  order_id: orderData.id,
+                  payment_id: response.razorpay_payment_id
+                })
+              });
+              
+              // Save order for receipt
+              const order = {
+                id: orderData.id,
+                date: new Date().toLocaleDateString(),
+                items: cartItems,
+                total: total.toFixed(2),
+                method: 'Razorpay'
+              };
+              localStorage.setItem('lastOrder', JSON.stringify(order));
+              
+              localStorage.removeItem('thriftCart');
+              window.location.href = 'success.html';
+          },
+          "prefill": {
+              "name": localStorage.getItem('userName'),
+              "email": localStorage.getItem('userEmail')
+          },
+          "theme": {
+              "color": "#3399cc"
+          }
+        };
+        const rzp1 = new Razorpay(options);
+        rzp1.on('payment.failed', function (response){
+                alert('Payment Failed. Reason: ' + response.error.description);
+        });
+        rzp1.open();
+      } catch (error) {
+        console.error("Error connecting to backend for Razorpay", error);
+        alert("Server error, could not start checkout.");
+      }
+    }
+  </script>
+</body>
+</html>

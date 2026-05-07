@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thrift Store | Thrift Smart, Dress Better</title>
+  <meta name="description" content="Sustainable, affordable, trendy fashion for the modern soul. Shop vintage, y2k, and modern thrift finds.">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Hero Section */
+    .hero {
+      height: 85vh;
+      background: linear-gradient(rgba(26, 26, 26, 0.4), rgba(26, 26, 26, 0.4)), url('images/hero_image.png') center/cover;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--white);
+    }
+    .hero-content h1 {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .hero-content p {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      max-width: 600px;
+      margin-inline: auto;
+    }
+
+    /* Categories */
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 40px;
+    }
+    .category-card {
+      position: relative;
+      height: 300px;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .category-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+    .category-card:hover img {
+      transform: scale(1.1);
+    }
+    .category-content {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.7));
+      display: flex;
+      align-items: flex-end;
+      padding: 30px;
+      color: white;
+    }
+    .category-content h3 {
+      font-size: 1.5rem;
+      text-transform: uppercase;
+    }
+
+    /* New Arrivals */
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    /* Banner */
+    .promo-banner {
+      background-color: var(--pastel-peach);
+      padding: 60px 20px;
+      text-align: center;
+      border-radius: 20px;
+      margin: 80px 0;
+    }
+    .promo-banner h2 {
+      font-size: 2.5rem;
+      margin-bottom: 15px;
+      color: var(--text-main);
+    }
+  </style>
+</head>
+<body>
+
+  <header></header>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="container hero-content animate-fade-in">
+        <h1>Thrift Smart, Dress Better</h1>
+        <p>Curated second-hand fashion for the modern soul. Sustainable, affordable, and undeniably aesthetic.</p>
+        <a href="shop.html" class="btn btn-accent">Shop New Drop</a>
+      </div>
+    </section>
+
+    <!-- Categories Section -->
+    <section class="section container">
+      <h2 class="section-title text-center">Shop by Category</h2>
+      <div class="categories-grid">
+        <div class="category-card" onclick="window.location.href='shop.html?category=Women'">
+          <img src="images/pastel_cardigan.png" alt="Women">
+          <div class="category-content"><h3>Women</h3></div>
+        </div>
+        <div class="category-card" onclick="window.location.href='shop.html?category=Men'">
+          <img src="images/black_pullover.jpg" alt="Men">
+          <div class="category-content"><h3>Men</h3></div>
+        </div>
+        <div class="category-card" onclick="window.location.href='shop.html?category=Vintage'">
+          <img src="images/vintage_jacket.png" alt="Vintage">
+          <div class="category-content"><h3>Vintage</h3></div>
+        </div>
+        <div class="category-card" onclick="window.location.href='shop.html?category=Accessories'">
+          <img src="images/chunky_loafers.png" alt="Accessories">
+          <div class="category-content"><h3>Accessories</h3></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- New Arrivals Section -->
+    <section class="section container">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <h2 class="section-title" style="margin-bottom: 0;">New Arrivals</h2>
+        <a href="shop.html" style="text-decoration: underline; font-weight: 500;">View All</a>
+      </div>
+      <div class="product-grid" id="new-arrivals-container">
+        <!-- Products injected via JS -->
+      </div>
+    </section>
+
+    <!-- Promo Banner -->
+    <section class="container">
+      <div class="promo-banner">
+        <h2>Circular Fashion Movement</h2>
+        <p style="margin-bottom: 25px; max-width: 600px; margin-inline: auto;">Join us in reducing fashion waste. Every piece has a story, continue it. 10% of all profits go towards ocean cleanup initiatives.</p>
+        <a href="about.html" class="btn btn-primary">Our Mission</a>
+      </div>
+    </section>
+  </main>
+
+  <footer></footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Load 4 latest products
+      const container = document.getElementById('new-arrivals-container');
+      if (container && products) {
+        const latest = products.slice(0, 4);
+        container.innerHTML = latest.map(p => createProductCard(p)).join('');
+      }
+    });
+  </script>
+</body>
+</html>
