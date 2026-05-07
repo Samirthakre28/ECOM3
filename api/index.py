@@ -27,6 +27,13 @@ razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 app = Flask(__name__)
 CORS(app)
 
+def get_db_path():
+    """On Vercel, /tmp is the only writable directory in serverless functions.
+    Locally, use the project root database.sqlite."""
+    if os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'):
+        return '/tmp/database.sqlite'
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'backend', 'database.sqlite')
+
 def get_db_connection():
     # Priority 1: Vercel Postgres (Production)
     postgres_url = os.environ.get('POSTGRES_URL')
@@ -34,11 +41,144 @@ def get_db_connection():
         conn = psycopg2.connect(postgres_url)
         return conn
 
-    # Priority 2: SQLite (Local/Fallback)
-    db_path = os.path.join(os.getcwd(), 'database.sqlite')
-    conn = sqlite3.connect(db_path)
+    # Priority 2: SQLite — uses /tmp on Vercel, local file in dev
+    conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
     return conn
+
+SEED_PRODUCTS = [
+    ("Vintage Wool Trench Coat", "Thrifted", 85.00, "L", "Excellent", "Outerwear",
+     "https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=600", "New Arrival",
+     "A beautiful vintage wool trench coat in excellent condition.", "In Stock"),
+    ("Retro Anorak Jacket", "Vintage Finds", 599.00, "One Size", "Good", "Men",
+     "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=600", "New Arrival",
+     "Unique vintage anorak — a true statement piece.", "In Stock"),
+    ("Classic Checkered Button-Down", "Vintage", 299.00, "M", "Good", "Men",
+     "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=600", "Vintage",
+     "Classic plaid button-down shirt, timeless style.", "In Stock"),
+    ("High-Waisted Corduroy Pants", "Vintage", 399.00, "28", "Good", "Women",
+     "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600", "Trending",
+     "Warm corduroy high-waisted pants for any season.", "In Stock"),
+    ("Chunky Platform Loafers", "Vintage", 499.00, "8", "Good", "Accessories",
+     "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=600", "Rare Find",
+     "Bold chunky platform loafers — the perfect statement shoe.", "In Stock"),
+    ("Pastel Knit Cardigan", "Vintage", 349.00, "S", "Good", "Women",
+     "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600", "New Arrival",
+     "Soft pastel knit cardigan, cozy and chic.", "In Stock"),
+    ("Oversized Flannel Shirt", "Vintage", 299.00, "L", "Good", "Men",
+     "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600", "New Arrival",
+     "Oversized flannel shirt — perfect layering piece.", "In Stock"),
+    ("Graphic Band Tee", "Vintage", 199.00, "M", "Good", "Men",
+     "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600", "Trending",
+     "Authentic vintage band tee with original graphics.", "In Stock"),
+    ("Floral Midi Dress", "Vintage", 449.00, "S", "Excellent", "Women",
+     "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=600", "New Arrival",
+     "Beautiful floral midi dress, perfect for any occasion.", "In Stock"),
+    ("Leather Crossbody Bag", "Vintage", 699.00, "One Size", "Good", "Accessories",
+     "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600", "Rare Find",
+     "Genuine leather crossbody bag with vintage hardware.", "In Stock"),
+    ("Denim Jacket", "Levi's Vintage", 799.00, "M", "Good", "Outerwear",
+     "https://images.unsplash.com/photo-1542272454315-4c01d7abdf4a?w=600", "Trending",
+     "Classic denim jacket — a wardrobe essential.", "In Stock"),
+    ("Silk Slip Dress", "Vintage", 529.00, "S", "Excellent", "Women",
+     "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600", "Vintage",
+     "Elegant silk slip dress in ivory — effortlessly chic.", "In Stock"),
+]
+
+def init_db():
+    """Initialize the database: create tables and seed products if empty.
+    Called once at module load. On Vercel, writes to /tmp."""
+    postgres_url = os.environ.get('POSTGRES_URL')
+    if postgres_url and HAS_POSTGRES:
+        # Postgres: create tables if not exist
+        try:
+            conn = psycopg2.connect(postgres_url)
+            cur = conn.cursor()
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE,
+                    password TEXT, is_admin INTEGER DEFAULT 0, is_blocked INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS products (
+                    id SERIAL PRIMARY KEY, title TEXT, brand TEXT, price REAL,
+                    size TEXT, condition TEXT, category TEXT, image TEXT,
+                    badge TEXT, description TEXT, stock_status TEXT DEFAULT \'In Stock\'
+                )''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS product_images (
+                    id SERIAL PRIMARY KEY, product_id INTEGER, image_url TEXT
+                )''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS orders (
+                    id TEXT PRIMARY KEY, user_id INTEGER, customer_name TEXT,
+                    customer_email TEXT, customer_phone TEXT, total_amount REAL,
+                    shipping_cost REAL DEFAULT 0, status TEXT DEFAULT \'Pending\',
+                    payment_id TEXT, created_at TIMESTAMP DEFAULT NOW()
+                )''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS order_items (
+                    id SERIAL PRIMARY KEY, order_id TEXT, product_id INTEGER,
+                    title TEXT, size TEXT, price REAL, quantity INTEGER
+                )''')
+            cur.execute('SELECT COUNT(*) FROM products')
+            count = cur.fetchone()[0]
+            if count == 0:
+                cur.executemany(
+                    'INSERT INTO products (title,brand,price,size,condition,category,image,badge,description,stock_status) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
+                    SEED_PRODUCTS
+                )
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f'Postgres init error: {e}')
+        return
+
+    # SQLite path
+    db_path = get_db_path()
+    conn = sqlite3.connect(db_path)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE,
+            password TEXT, is_admin INTEGER DEFAULT 0, is_blocked INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, brand TEXT, price REAL,
+            size TEXT, condition TEXT, category TEXT, image TEXT,
+            badge TEXT, description TEXT, stock_status TEXT DEFAULT 'In Stock'
+        )''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS product_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER, image_url TEXT
+        )''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS orders (
+            id TEXT PRIMARY KEY, user_id INTEGER, customer_name TEXT,
+            customer_email TEXT, customer_phone TEXT, total_amount REAL,
+            shipping_cost REAL DEFAULT 0, status TEXT DEFAULT 'Pending',
+            payment_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS order_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT, product_id INTEGER,
+            title TEXT, size TEXT, price REAL, quantity INTEGER
+        )''')
+    count = conn.execute('SELECT COUNT(*) FROM products').fetchone()[0]
+    if count == 0:
+        conn.executemany(
+            'INSERT INTO products (title,brand,price,size,condition,category,image,badge,description,stock_status) VALUES (?,?,?,?,?,?,?,?,?,?)',
+            SEED_PRODUCTS
+        )
+        print(f'Seeded {len(SEED_PRODUCTS)} products into SQLite.')
+    conn.commit()
+    conn.close()
+
+# Initialize DB on every cold start
+init_db()
 
 # Helper to fetch one/all from both types of connections
 def fetch_one(conn, query, params=()):
