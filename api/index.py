@@ -1,14 +1,25 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
-import razorpay
 import jwt
 import datetime
 from functools import wraps
 import hashlib
-import bcrypt
 import re
 import os
+
+# --- Safe optional imports (won't crash module if missing C extensions) ---
+try:
+    import bcrypt
+    HAS_BCRYPT = True
+except Exception:
+    HAS_BCRYPT = False
+
+try:
+    import razorpay as razorpay_lib
+    HAS_RAZORPAY = True
+except Exception:
+    HAS_RAZORPAY = False
 
 try:
     import psycopg2
@@ -17,12 +28,21 @@ try:
 except ImportError:
     HAS_POSTGRES = False
 
-# Use environment variables for production
-SECRET_KEY = os.environ.get("JWT_SECRET", "your_super_secret_jwt_key_here")
-RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_SkOaBP9BFrAoaF")
-RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "b8bzfgnzfxF4JQVJHjLffYH3")
+# --- Config ---
+SECRET_KEY = os.environ.get("JWT_SECRET", "thrifty_secret_key_change_in_production")
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
-razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+# Lazy-initialise razorpay so a bad key never crashes the module
+_razorpay_client = None
+def get_razorpay_client():
+    global _razorpay_client
+    if _razorpay_client is None and HAS_RAZORPAY and RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+        try:
+            _razorpay_client = razorpay_lib.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+        except Exception as e:
+            print(f'Razorpay init error: {e}')
+    return _razorpay_client
 
 app = Flask(__name__)
 CORS(app)
@@ -178,7 +198,10 @@ def init_db():
     conn.close()
 
 # Initialize DB on every cold start
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print(f"Database initialization error: {e}")
 
 # Helper to fetch one/all from both types of connections
 def fetch_one(conn, query, params=()):
@@ -311,7 +334,11 @@ def user_signup():
     if existing:
         conn.close()
         return jsonify({'message': 'An account with this email already exists.'}), 409
-    hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    if HAS_BCRYPT:
+        hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    else:
+        # Fallback to SHA256 if bcrypt is missing (not ideal for production but prevents crash)
+        hashed_pw = hashlib.sha256(password.encode()).hexdigest()
     
     user_id = execute_query(conn, 'INSERT INTO users (name, email, password, is_admin) VALUES (?, ?, ?, 0)', (name, email, hashed_pw))
     conn.close()
@@ -334,7 +361,7 @@ def user_login():
         return jsonify({'message': 'Your account has been suspended.'}), 403
     pw_match = False
     stored_pw = user['password']
-    if stored_pw.startswith('$2b$') or stored_pw.startswith('$2a$'):
+    if HAS_BCRYPT and (stored_pw.startswith('$2b$') or stored_pw.startswith('$2a$')):
         pw_match = bcrypt.checkpw(password.encode(), stored_pw.encode())
     else:
         pw_match = (stored_pw == hashlib.sha256(password.encode()).hexdigest())
@@ -467,7 +494,10 @@ def create_order(current_user):
     data = request.json
     try:
         amount = int(float(data.get('amount', 0)) * 100)
-        order = razorpay_client.order.create({"amount": amount, "currency": "INR", "receipt": "receipt_" + str(amount), "notes": {"shipping": data.get('shipping', 0)}})
+        rz_client = get_razorpay_client()
+        if not rz_client:
+            return jsonify({'error': 'Payment gateway not configured'}), 500
+        order = rz_client.order.create({"amount": amount, "currency": "INR", "receipt": "receipt_" + str(amount), "notes": {"shipping": data.get('shipping', 0)}})
         conn = get_db_connection()
         q = '''INSERT INTO orders (id, user_id, customer_name, customer_email, customer_phone, total_amount, shipping_cost, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''.replace('?', '%s' if HAS_POSTGRES and os.environ.get('POSTGRES_URL') else '?')
         execute_query(conn, q, (order['id'], current_user['id'], current_user['name'], current_user['email'], data.get('customer_phone', ''), float(data.get('amount', 0)), float(data.get('shipping', 0)), 'Pending'))
