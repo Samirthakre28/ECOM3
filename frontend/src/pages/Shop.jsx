@@ -55,7 +55,7 @@ function Shop() {
                             {products.length === 0 ? (
                                 <p style={{ color: 'var(--text-muted)' }}>No products found in this category.</p>
                             ) : (
-                                products.map(p => <ProductCard key={p._id} product={p} />)
+                                products.map(p => <ProductCard key={p.id || p._id} product={p} />)
                             )}
                         </div>
                     )}

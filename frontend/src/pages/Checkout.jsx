@@ -95,7 +95,7 @@ function Checkout() {
                     
                     <div style={{marginBottom: '30px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
                         {cart.map(item => (
-                            <div key={item._id} style={{display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)'}}>
+                            <div key={item.id || item._id} style={{display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)'}}>
                                 <span>{item.quantity}x {item.title}</span>
                                 <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                             </div>
