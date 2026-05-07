@@ -4,7 +4,9 @@
   "scripts": {
     "client": "cd frontend && npm run dev",
     "server": "cd backend && npm start",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "cd frontend && npm install && npm run build",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
